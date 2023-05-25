@@ -7,6 +7,7 @@ import io.agrest.ObjectMapperFactory;
 import io.agrest.SimpleResponse;
 import io.agrest.UpdateBuilder;
 import io.agrest.UpdateStage;
+import io.agrest.access.PathChecker;
 import io.agrest.id.AgObjectId;
 import io.agrest.meta.AgEntity;
 import io.agrest.meta.AgEntityOverlay;
@@ -86,6 +87,12 @@ public class DefaultUpdateBuilder<T> implements UpdateBuilder<T> {
         return this;
     }
 
+    @Override
+    public UpdateBuilder<T> maxPathDepth(int maxPathDepth) {
+        context.setMaxPathDepth(PathChecker.of(maxPathDepth));
+        return this;
+    }
+
     /**
      * @since 2.7
      */
@@ -122,7 +129,8 @@ public class DefaultUpdateBuilder<T> implements UpdateBuilder<T> {
      */
     @Override
     public SimpleResponse sync(EntityUpdate<T> update) {
-        return sync(Collections.singleton(update));
+        Collection<EntityUpdate<T>> updates = update != null ? Collections.singleton(update) : Collections.emptyList();
+        return sync(updates);
     }
 
     /**
@@ -157,7 +165,8 @@ public class DefaultUpdateBuilder<T> implements UpdateBuilder<T> {
      */
     @Override
     public DataResponse<T> syncAndSelect(EntityUpdate<T> update) {
-        return syncAndSelect(Collections.singleton(update));
+        Collection<EntityUpdate<T>> updates = update != null ? Collections.singleton(update) : Collections.emptyList();
+        return syncAndSelect(updates);
     }
 
     private SimpleResponse doSync() {

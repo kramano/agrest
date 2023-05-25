@@ -10,10 +10,8 @@ import io.agrest.cayenne.cayenne.main.E3;
 import io.agrest.cayenne.cayenne.main.E31;
 import io.agrest.cayenne.cayenne.main.E4;
 import io.agrest.cayenne.cayenne.main.E6;
-import io.agrest.cayenne.unit.AgCayenneTester;
-import io.agrest.cayenne.unit.DbTest;
-import io.agrest.converter.jsonvalue.UtcDateConverter;
-import io.agrest.encoder.DateTimeFormatters;
+import io.agrest.cayenne.unit.main.MainDbTest;
+import io.agrest.cayenne.unit.main.MainModelTester;
 import io.agrest.jaxrs2.AgJaxrs;
 import io.agrest.meta.AgEntity;
 import io.agrest.meta.AgEntityOverlay;
@@ -30,17 +28,16 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
 import java.nio.charset.StandardCharsets;
-import java.sql.Time;
-import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-public class GET_IT extends DbTest {
+public class GET_IT extends MainDbTest {
 
     @BQTestTool
-    static final AgCayenneTester tester = tester(Resource.class)
+    static final MainModelTester tester = tester(Resource.class)
             .entities(E2.class, E3.class, E4.class, E6.class, E17.class, E19.class, E28.class, E31.class)
             .entitiesAndDependencies(E29.class)
             .build();
@@ -73,73 +70,34 @@ public class GET_IT extends DbTest {
     @Test
     public void testDateTime() {
 
-        Date date = Date.from(Instant.from(UtcDateConverter.dateParser().fromString("2012-02-03T11:01:02Z")));
-        tester.e4().insertColumns("c_timestamp").values(date).exec();
-
-        String dateString = DateTimeFormatters.isoLocalDateTime().format(Instant.ofEpochMilli(date.getTime()));
+        LocalDateTime dateTime = LocalDateTime.of(2012, 2, 3, 11, 1, 2);
+        tester.e4().insertColumns("c_timestamp").values(dateTime).exec();
 
         tester.target("/e4").queryParam("include", E4.C_TIMESTAMP.getName()).get()
-                .wasOk().bodyEquals(1, "{\"cTimestamp\":\"" + dateString + "\"}");
+                .wasOk().bodyEquals(1, "{\"cTimestamp\":\"2012-02-03T11:01:02\"}");
     }
 
     @Test
-    public void testDate() {
+    public void testSqlDate() {
 
-        Date date = Date.from(Instant.from(UtcDateConverter.dateParser().fromString("2012-02-03")));
+        LocalDate date = LocalDate.of(2012, 2, 3);
         tester.e4().insertColumns("c_date").values(date).exec();
-
-        String dateString = DateTimeFormatters.isoLocalDateTime().format(Instant.ofEpochMilli(date.getTime()));
 
         tester.target("/e4").queryParam("include", E4.C_DATE.getName())
                 .get()
                 .wasOk()
-                .bodyEquals(1, "{\"cDate\":\"" + dateString + "\"}");
+                .bodyEquals(1, "{\"cDate\":\"2012-02-03T00:00:00\"}");
     }
 
     @Test
     public void testTime() {
-
         LocalTime lt = LocalTime.of(14, 0, 1);
-
-        // "14:00:01"
-        Time time = Time.valueOf(lt);
-
-        tester.e4().insertColumns("c_time").values(time).exec();
-
-        String timeString = DateTimeFormatters.isoLocalDateTime().format(Instant.ofEpochMilli(time.getTime()));
-
-        tester.target("/e4").queryParam("include", E4.C_TIME.getName()).get().wasOk().bodyEquals(1, "{\"cTime\":\"" + timeString + "\"}");
+        tester.e4().insertColumns("c_time").values(lt).exec();
+        tester.target("/e4").queryParam("include", E4.C_TIME.getName()).get().wasOk().bodyEquals(1, "{\"cTime\":\"1970-01-01T14:00:01\"}");
     }
 
     // TODO: add tests for java.sql attributes
 
-    @Test
-    public void testSort_ById() {
-
-        tester.e4().insertColumns("id")
-                .values(2)
-                .values(1)
-                .values(3).exec();
-
-        tester.target("/e4")
-                .queryParam("sort", "[{\"property\":\"id\",\"direction\":\"DESC\"}]")
-                .queryParam("include", "id")
-                .get()
-                .wasOk()
-                .bodyEquals(3, "{\"id\":3}", "{\"id\":2}", "{\"id\":1}");
-    }
-
-    @Test
-    public void testSort_Invalid() {
-
-        tester.target("/e4")
-                .queryParam("sort", "[{\"property\":\"xyz\",\"direction\":\"DESC\"}]")
-                .queryParam("include", "id")
-                .get()
-                .wasBadRequest()
-                .bodyEquals("{\"message\":\"Invalid path 'xyz' for 'E4'\"}");
-    }
-    
     @Test
     public void testById() {
 
@@ -312,64 +270,6 @@ public class GET_IT extends DbTest {
                 .queryParam("id2", 15)
                 .get().wasOk()
                 .bodyEquals(1, "{\"id\":{\"db:id1\":1,\"id2Prop\":15},\"id2Prop\":15}");
-    }
-
-    @Test
-    public void testMapByRootEntity() {
-
-        tester.e4().insertColumns("c_varchar", "c_int").values("xxx", 1)
-                .values("yyy", 2)
-                .values("zzz", 2).exec();
-
-        tester.target("/e4")
-                .queryParam("mapBy", "cInt")
-                .queryParam("include", "cVarchar")
-
-                .get().wasOk().bodyEqualsMapBy(3,
-                "\"1\":[{\"cVarchar\":\"xxx\"}]",
-                "\"2\":[{\"cVarchar\":\"yyy\"},{\"cVarchar\":\"zzz\"}]");
-    }
-
-    @Test
-    public void testMapBy_RelatedId() {
-
-        tester.e2().insertColumns("id_", "name")
-                .values(1, "zzz")
-                .values(2, "yyy").exec();
-
-        tester.e3().insertColumns("id_", "name", "e2_id")
-                .values(8, "aaa", 1)
-                .values(9, "bbb", 1)
-                .values(10, "ccc", 2).exec();
-
-        tester.target("/e3")
-                .queryParam("mapBy", "e2.id")
-                .queryParam("exclude", "phoneNumber")
-
-                .get().wasOk().bodyEqualsMapBy(3,
-                "\"1\":[{\"id\":8,\"name\":\"aaa\"},{\"id\":9,\"name\":\"bbb\"}]",
-                "\"2\":[{\"id\":10,\"name\":\"ccc\"}]");
-    }
-
-    @Test
-    public void testMapBy_OverRelationship() {
-
-        tester.e2().insertColumns("id_", "name")
-                .values(1, "zzz")
-                .values(2, "yyy").exec();
-
-        tester.e3().insertColumns("id_", "name", "e2_id")
-                .values(8, "aaa", 1)
-                .values(9, "bbb", 1)
-                .values(10, "ccc", 2).exec();
-
-        tester.target("/e3")
-                .queryParam("mapBy", "e2")
-                .queryParam("exclude", "phoneNumber")
-
-                .get().wasOk().bodyEqualsMapBy(3,
-                "\"1\":[{\"id\":8,\"name\":\"aaa\"},{\"id\":9,\"name\":\"bbb\"}]",
-                "\"2\":[{\"id\":10,\"name\":\"ccc\"}]");
     }
 
     @Test

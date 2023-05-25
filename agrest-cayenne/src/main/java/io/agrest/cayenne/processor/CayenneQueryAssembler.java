@@ -1,8 +1,6 @@
 package io.agrest.cayenne.processor;
 
 import io.agrest.AgException;
-import io.agrest.id.AgObjectId;
-import io.agrest.runtime.EntityParent;
 import io.agrest.RelatedResourceEntity;
 import io.agrest.ResourceEntity;
 import io.agrest.RootResourceEntity;
@@ -11,10 +9,12 @@ import io.agrest.cayenne.exp.ICayenneExpPostProcessor;
 import io.agrest.cayenne.path.IPathResolver;
 import io.agrest.cayenne.path.PathOps;
 import io.agrest.cayenne.persister.ICayennePersister;
+import io.agrest.id.AgObjectId;
 import io.agrest.meta.AgEntity;
 import io.agrest.meta.AgIdPart;
 import io.agrest.protocol.Direction;
 import io.agrest.protocol.Sort;
+import io.agrest.runtime.EntityParent;
 import io.agrest.runtime.processor.select.SelectContext;
 import org.apache.cayenne.di.Inject;
 import org.apache.cayenne.exp.Expression;
@@ -100,7 +100,7 @@ public class CayenneQueryAssembler implements ICayenneQueryAssembler {
 
         AgEntity<?> parentEntity = entity.getParent().getAgEntity();
         ObjEntity parentObjEntity = entityResolver.getObjEntity(entity.getParent().getName());
-        ObjRelationship objRelationship = parentObjEntity.getRelationship(entity.getIncoming().getName());
+        ObjRelationship objRelationship = findRelationship(parentObjEntity, entity.getIncoming().getName());
         ASTDbPath reversePath = new ASTDbPath(objRelationship.getReverseDbRelationshipPath());
 
         Property<?>[] columns = new Property<?>[parentEntity.getIdParts().size() + 1];
@@ -117,6 +117,30 @@ public class CayenneQueryAssembler implements ICayenneQueryAssembler {
         }
 
         return columns;
+    }
+
+    private ObjRelationship findRelationship(ObjEntity entity, String name) {
+
+        // Take inheritance into account... ObjRelationship may not be present in the superclass, but the underlying
+        // DB path is there. So let's find it in subclasses, and resolve the path.
+        // TODO: this may not work with the future Cayenne horizontal inheritance
+
+        ObjRelationship re = entity.getRelationship(name);
+        ObjRelationship r = re != null ? re : findRelationshipInHierarchy(entity, name);
+        if (r == null) {
+            throw new IllegalStateException("ObjRelationship '" + name + "' is not found in '"
+                    + entity.getName() + "' or in its inheritance hierarchy");
+        }
+
+        return r;
+    }
+
+    private ObjRelationship findRelationshipInHierarchy(ObjEntity parentObjEntity, String name) {
+        return entityResolver.getInheritanceTree(parentObjEntity.getName()).allSubEntities().stream()
+                .filter(e -> e != parentObjEntity)
+                .map(e -> e.getRelationship(name))
+                .findFirst()
+                .orElse(null);
     }
 
     // using dbpaths for all expression operations on the theory that some object paths can be unidirectional, and
@@ -141,21 +165,16 @@ public class CayenneQueryAssembler implements ICayenneQueryAssembler {
                 return null;
             }
 
+            String incomingPath = dbPath(parent.getType(), entity.getIncoming().getName());
+            String fullDbPath = concatWithParentDbPath(incomingPath, outgoingDbPath);
+
             ObjEntity parentObjEntity = entityResolver.getObjEntity(parent.getType());
-            ObjRelationship incoming = parentObjEntity.getRelationship(entity.getIncoming().getName());
-
-            if (incoming == null) {
-                throw new IllegalStateException("No such relationship: " + parentObjEntity.getName() + "." + entity.getIncoming().getName());
-            }
-
-            String fullDbPath = concatWithParentDbPath(incoming, outgoingDbPath);
             Expression dbParentQualifier = parentObjEntity.translateToDbPath(parentQualifier);
             return parentObjEntity.getDbEntity().translateToRelatedEntity(dbParentQualifier, fullDbPath);
         }
 
-        ObjEntity parentObjEntity = entityResolver.getObjEntity(entity.getParent().getType());
-        ObjRelationship incoming = parentObjEntity.getRelationship(entity.getIncoming().getName());
-        String fullDbPath = concatWithParentDbPath(incoming, outgoingDbPath);
+        String incomingPath = dbPath(parent.getType(), entity.getIncoming().getName());
+        String fullDbPath = concatWithParentDbPath(incomingPath, outgoingDbPath);
 
         // shouldn't really happen with any of the current built-in root strategies, but who knows what customizations
         // can be applied
@@ -170,13 +189,40 @@ public class CayenneQueryAssembler implements ICayenneQueryAssembler {
         return resolveParentQualifier((RelatedResourceEntity) parent, fullDbPath);
     }
 
-    private String concatWithParentDbPath(ObjRelationship incoming, String outgoingDbPath) {
-        String dbPath = incoming.getDbRelationshipPath();
-        return outgoingDbPath != null ? dbPath + "." + outgoingDbPath : dbPath;
+    private String dbPath(Class<?> entityType, String relationshipName) {
+
+        // we can pick "relationshipName" from anywhere in the inheritance hierarchy, as it will be converted to a db path,
+        // which is inheritance agnostic (at least until Cayenne starts supporting horizontal inheritance)
+
+        return objRelationshipInInheritanceHierarchy(entityType, relationshipName).getDbRelationshipPath();
+    }
+
+    private ObjRelationship objRelationshipInInheritanceHierarchy(Class<?> superclassType, String relationshipName) {
+        ObjEntity e = entityResolver.getObjEntity(superclassType);
+        ObjRelationship r = e.getRelationship(relationshipName);
+
+        if (r != null) {
+            return r;
+        }
+
+        for (ObjEntity se : entityResolver.getInheritanceTree(e.getName()).allSubEntities()) {
+            if (se != e) {
+                ObjRelationship sr = se.getRelationship(relationshipName);
+                if (sr != null) {
+                    return sr;
+                }
+            }
+        }
+
+        throw new IllegalStateException("No such relationship in entity or sub-entities: " + e.getName() + "." + relationshipName);
+    }
+
+    private String concatWithParentDbPath(String incomingDbPath, String outgoingDbPath) {
+        return outgoingDbPath != null ? incomingDbPath + "." + outgoingDbPath : incomingDbPath;
     }
 
     @Override
-    public <T, P> ColumnSelect<Object[]> createQueryWithParentIdsQualifier(RelatedResourceEntity<T> entity, Iterator<P> parentData) {
+    public <T, P> ColumnSelect<Object[]> createQueryWithParentIdsQualifier(RelatedResourceEntity<T> entity, Iterable<P> parentData) {
 
         ColumnSelect<Object[]> query = createBaseQuery(entity).columns(queryColumns(entity));
 
@@ -199,10 +245,19 @@ public class CayenneQueryAssembler implements ICayenneQueryAssembler {
         return query.and(ExpressionFactory.or(qualifiers));
     }
 
-    static <P> void consumeRange(Iterator<P> parentData, int offset, int len, Consumer<P> consumer) {
+    static <P> void consumeRange(Iterable<P> parentData, int offset, int limit, Consumer<P> consumer) {
+        if (parentData instanceof List) {
+            // this optimization prevents faulting of paginated lists
+            consumeRangeList((List<P>) parentData, offset, limit, consumer);
+        } else {
+            consumeRangeIterator(parentData.iterator(), offset, limit, consumer);
+        }
+    }
+
+    static <P> void consumeRangeIterator(Iterator<P> parentData, int offset, int limit, Consumer<P> consumer) {
 
         int from = Math.max(0, offset);
-        int to = len > 0 ? Math.min(from + len, Integer.MAX_VALUE) : Integer.MAX_VALUE;
+        int to = limit > 0 ? Math.min(from + limit, Integer.MAX_VALUE) : Integer.MAX_VALUE;
 
         for (int i = 0; i < from && parentData.hasNext(); i++) {
             parentData.next();
@@ -210,6 +265,26 @@ public class CayenneQueryAssembler implements ICayenneQueryAssembler {
 
         for (int i = from; i < to && parentData.hasNext(); i++) {
             consumer.accept(parentData.next());
+        }
+    }
+
+    static <P> void consumeRangeList(List<P> parents, int offset, int limit, Consumer<P> consumer) {
+
+
+        int len = parents.size();
+        if (len == 0) {
+            return;
+        }
+
+        int from = Math.max(0, offset);
+        if (from >= len) {
+            return;
+        }
+
+        int to = limit > 0 ? Math.min(from + limit, len) : len;
+
+        for (int i = from; i < to; i++) {
+            consumer.accept(parents.get(i));
         }
     }
 

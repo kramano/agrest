@@ -77,7 +77,7 @@ public class CayenneUpdateApplyServerParamsStage extends UpdateApplyServerParams
 
         // apply read constraints
         // TODO: should we only care about response constraints after the commit?
-        constraintsHandler.constrainResponse(entity, null);
+        constraintsHandler.constrainResponse(entity);
 
         tagRootEntity(context.getEntity());
     }
@@ -88,12 +88,12 @@ public class CayenneUpdateApplyServerParamsStage extends UpdateApplyServerParams
         }
 
         if (entity.getMapBy() != null) {
-            for (RelatedResourceEntity<?> child : entity.getMapBy().getChildren().values()) {
+            for (RelatedResourceEntity<?> child : entity.getMapBy().getChildren()) {
                 tagRelatedEntity(child);
             }
         }
 
-        for (RelatedResourceEntity<?> child : entity.getChildren().values()) {
+        for (RelatedResourceEntity<?> child : entity.getChildren()) {
             tagRelatedEntity(child);
         }
     }
@@ -104,12 +104,12 @@ public class CayenneUpdateApplyServerParamsStage extends UpdateApplyServerParams
         }
 
         if (entity.getMapBy() != null) {
-            for (RelatedResourceEntity<?> child : entity.getMapBy().getChildren().values()) {
+            for (RelatedResourceEntity<?> child : entity.getMapBy().getChildren()) {
                 tagRelatedEntity(child);
             }
         }
 
-        for (RelatedResourceEntity<?> child : entity.getChildren().values()) {
+        for (RelatedResourceEntity<?> child : entity.getChildren()) {
             tagRelatedEntity(child);
         }
     }

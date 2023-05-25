@@ -5,9 +5,10 @@ import io.agrest.EntityUpdate;
 import io.agrest.RootResourceEntity;
 import io.agrest.access.CreateAuthorizer;
 import io.agrest.access.DeleteAuthorizer;
+import io.agrest.access.PathChecker;
 import io.agrest.access.ReadFilter;
 import io.agrest.access.UpdateAuthorizer;
-import io.agrest.pojo.model.P1;
+import io.agrest.junit.pojo.P1;
 import io.agrest.reader.DataReader;
 import io.agrest.resolver.RootDataResolver;
 import io.agrest.runtime.processor.select.SelectContext;
@@ -31,8 +32,8 @@ public class AgEntityOverlayTest {
         RootDataResolver<P1> r1 = mock(RootDataResolver.class);
 
         AgEntity<P1> e = new DefaultEntity<>(
-                "p1", P1.class,
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(),
+                "p1", P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 r1,
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -43,7 +44,7 @@ public class AgEntityOverlayTest {
         AgEntityOverlay<P1> attributeOverlay = AgEntity.overlay(P1.class)
                 .attribute("a1", String.class, P1::getName);
 
-        AgEntity<P1> eo = attributeOverlay.resolve(mock(AgSchema.class), e);
+        AgEntity<P1> eo = attributeOverlay.resolve(mock(AgSchema.class), e, e.getSubEntities());
         assertEquals("p1", eo.getName());
         assertEquals(P1.class, eo.getType());
         assertEquals(r1, eo.getDataResolver());
@@ -55,8 +56,8 @@ public class AgEntityOverlayTest {
         RootDataResolver<P1> r1 = mock(RootDataResolver.class);
 
         AgEntity<P1> e = new DefaultEntity<>(
-                "p1", P1.class,
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(),
+                "p1", P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 r1,
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -72,7 +73,7 @@ public class AgEntityOverlayTest {
                 .overlay(P1.class)
                 .attribute("a1", String.class, throwing);
 
-        AgEntity<P1> eo = attributeOverlay.resolve(mock(AgSchema.class), e);
+        AgEntity<P1> eo = attributeOverlay.resolve(mock(AgSchema.class), e, e.getSubEntities());
         DataReader reader = eo.getAttribute("a1").getDataReader();
         assertThrows(RuntimeException.class, () -> reader.read(new P1()));
     }
@@ -83,8 +84,8 @@ public class AgEntityOverlayTest {
         RootDataResolver<P1> r2 = mock(RootDataResolver.class);
 
         AgEntity<P1> e = new DefaultEntity<>(
-                "p1", P1.class,
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(),
+                "p1", P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 r1,
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -95,7 +96,7 @@ public class AgEntityOverlayTest {
         AgEntityOverlay<P1> resolverOnly = AgEntity.overlay(P1.class)
                 .dataResolver(r2);
 
-        AgEntity<P1> eo = resolverOnly.resolve(mock(AgSchema.class), e);
+        AgEntity<P1> eo = resolverOnly.resolve(mock(AgSchema.class), e, e.getSubEntities());
         assertEquals("p1", eo.getName());
         assertEquals(P1.class, eo.getType());
         assertEquals(r2, eo.getDataResolver());
@@ -106,8 +107,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -118,13 +119,15 @@ public class AgEntityOverlayTest {
         List<P1> p1s = asList(new P1(), new P1());
 
         AgEntityOverlay<P1> resolverOnly = AgEntity.overlay(P1.class).dataResolver(c -> p1s);
-        AgEntity<P1> eo = resolverOnly.resolve(mock(AgSchema.class), e);
+        AgEntity<P1> eo = resolverOnly.resolve(mock(AgSchema.class), e, e.getSubEntities());
 
         SelectContext<P1> context = new SelectContext<>(
                 P1.class,
                 mock(AgRequestBuilder.class),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
-        context.setEntity(new RootResourceEntity<>(mock(AgEntity.class)));
+
+        context.setEntity(new RootResourceEntity<>(eo));
         eo.getDataResolver().fetchData(context);
 
         assertSame(p1s, context.getEntity().getData());
@@ -135,10 +138,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -148,7 +149,7 @@ public class AgEntityOverlayTest {
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).readFilter(p1 -> p1.getName().startsWith("a"));
 
-        ReadFilter<P1> f = o.resolve(mock(AgSchema.class), e).getReadFilter();
+        ReadFilter<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getReadFilter();
         P1 p11 = new P1();
         p11.setName("x");
         P1 p12 = new P1();
@@ -163,10 +164,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 p1 -> p1.getName().startsWith("a"),
                 CreateAuthorizer.allowsAllFilter(),
@@ -176,7 +175,7 @@ public class AgEntityOverlayTest {
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).readFilter(p1 -> p1.getName().endsWith("a"));
 
-        ReadFilter<P1> f = o.resolve(mock(AgSchema.class), e).getReadFilter();
+        ReadFilter<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getReadFilter();
         P1 p11 = new P1();
         p11.setName("ax");
 
@@ -196,10 +195,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 p1 -> p1.getName().startsWith("a"),
                 CreateAuthorizer.allowsAllFilter(),
@@ -211,7 +208,7 @@ public class AgEntityOverlayTest {
                 .ignoreOverlaidReadFilter()
                 .readFilter(p1 -> p1.getName().endsWith("a"));
 
-        ReadFilter<P1> f = o.resolve(mock(AgSchema.class), e).getReadFilter();
+        ReadFilter<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getReadFilter();
         P1 p11 = new P1();
         p11.setName("ax");
 
@@ -231,10 +228,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 p1 -> p1.getName().startsWith("a"),
                 CreateAuthorizer.allowsAllFilter(),
@@ -244,7 +239,7 @@ public class AgEntityOverlayTest {
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).ignoreOverlaidReadFilter();
 
-        ReadFilter<P1> f = o.resolve(mock(AgSchema.class), e).getReadFilter();
+        ReadFilter<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getReadFilter();
         P1 p11 = new P1();
         p11.setName("ax");
 
@@ -264,10 +259,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -276,7 +269,7 @@ public class AgEntityOverlayTest {
         );
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).createAuthorizer(u -> ((String) u.getValues().get("name")).startsWith("a"));
-        CreateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getCreateAuthorizer();
+        CreateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getCreateAuthorizer();
 
         EntityUpdate<P1> p11 = new EntityUpdate<>(mock(AgEntity.class));
         p11.getValues().put("name", "x");
@@ -293,10 +286,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 u -> ((String) u.getValues().get("name")).startsWith("a"),
@@ -305,7 +296,7 @@ public class AgEntityOverlayTest {
         );
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).createAuthorizer(u -> ((String) u.getValues().get("name")).endsWith("a"));
-        CreateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getCreateAuthorizer();
+        CreateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getCreateAuthorizer();
 
         EntityUpdate<P1> p11 = new EntityUpdate<>(mock(AgEntity.class));
         p11.getValues().put("name", "ax");
@@ -326,10 +317,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 u -> ((String) u.getValues().get("name")).startsWith("a"),
@@ -340,7 +329,7 @@ public class AgEntityOverlayTest {
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class)
                 .createAuthorizer(u -> ((String) u.getValues().get("name")).endsWith("a"))
                 .ignoreOverlaidCreateAuthorizer();
-        CreateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getCreateAuthorizer();
+        CreateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getCreateAuthorizer();
 
         EntityUpdate<P1> p11 = new EntityUpdate<>(mock(AgEntity.class));
         p11.getValues().put("name", "ax");
@@ -361,10 +350,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -373,7 +360,7 @@ public class AgEntityOverlayTest {
         );
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).updateAuthorizer((p1, u) -> ((String) u.getValues().get("name")).startsWith("a"));
-        UpdateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getUpdateAuthorizer();
+        UpdateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getUpdateAuthorizer();
 
         EntityUpdate<P1> p11 = new EntityUpdate<>(mock(AgEntity.class));
         p11.getValues().put("name", "x");
@@ -390,10 +377,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -402,7 +387,7 @@ public class AgEntityOverlayTest {
         );
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).updateAuthorizer((p1, u) -> ((String) u.getValues().get("name")).endsWith("a"));
-        UpdateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getUpdateAuthorizer();
+        UpdateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getUpdateAuthorizer();
 
         EntityUpdate<P1> p11 = new EntityUpdate<>(mock(AgEntity.class));
         p11.getValues().put("name", "ax");
@@ -423,10 +408,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -437,7 +420,7 @@ public class AgEntityOverlayTest {
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class)
                 .ignoreOverlaidUpdateAuthorizer()
                 .updateAuthorizer((p1, u) -> ((String) u.getValues().get("name")).endsWith("a"));
-        UpdateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getUpdateAuthorizer();
+        UpdateAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getUpdateAuthorizer();
 
         EntityUpdate<P1> p11 = new EntityUpdate<>(mock(AgEntity.class));
         p11.getValues().put("name", "ax");
@@ -458,10 +441,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -474,7 +455,7 @@ public class AgEntityOverlayTest {
                 .updateAuthorizer((p1, u) -> ((String) u.getValues().get("name")).endsWith("a"));
 
         AgEntityOverlay<P1> oMerged = AgEntity.overlay(P1.class).merge(o);
-        UpdateAuthorizer<P1> f = oMerged.resolve(mock(AgSchema.class), e).getUpdateAuthorizer();
+        UpdateAuthorizer<P1> f = oMerged.resolve(mock(AgSchema.class), e, e.getSubEntities()).getUpdateAuthorizer();
 
         EntityUpdate<P1> p11 = new EntityUpdate<>(mock(AgEntity.class));
         p11.getValues().put("name", "ax");
@@ -495,10 +476,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -507,7 +486,7 @@ public class AgEntityOverlayTest {
         );
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).deleteAuthorizer(p1 -> p1.getName().startsWith("a"));
-        DeleteAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getDeleteAuthorizer();
+        DeleteAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getDeleteAuthorizer();
 
         P1 p11 = new P1();
         p11.setName("x");
@@ -523,10 +502,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -535,7 +512,7 @@ public class AgEntityOverlayTest {
         );
 
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class).deleteAuthorizer(p1 -> p1.getName().endsWith("a"));
-        DeleteAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getDeleteAuthorizer();
+        DeleteAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getDeleteAuthorizer();
 
         P1 p11 = new P1();
         p11.setName("ax");
@@ -556,10 +533,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(), Map.of(), Map.of(),
                 mock(RootDataResolver.class),
                 ReadFilter.allowsAllFilter(),
                 CreateAuthorizer.allowsAllFilter(),
@@ -570,7 +545,7 @@ public class AgEntityOverlayTest {
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class)
                 .ignoreOverlaidDeleteAuthorizer()
                 .deleteAuthorizer(p1 -> p1.getName().endsWith("a"));
-        DeleteAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e).getDeleteAuthorizer();
+        DeleteAuthorizer<P1> f = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getDeleteAuthorizer();
 
         P1 p11 = new P1();
         p11.setName("ax");
@@ -591,8 +566,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(),
                 Map.of("name", new DefaultAttribute("name", String.class, true, true, o -> null)),
                 Collections.emptyMap(),
                 mock(RootDataResolver.class),
@@ -605,7 +580,7 @@ public class AgEntityOverlayTest {
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class)
                 .readablePropFilter(b -> b.property("name", false))
                 .writablePropFilter(b -> b.property("name", false));
-        AgAttribute a = o.resolve(mock(AgSchema.class), e).getAttribute("name");
+        AgAttribute a = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getAttribute("name");
         assertFalse(a.isReadable());
         assertFalse(a.isWritable());
     }
@@ -615,8 +590,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
-                Collections.emptyMap(),
+                P1.class, false,
+                List.of(), Map.of(),
                 Map.of("name", new DefaultAttribute("name", String.class, false, false, o -> null)),
                 Collections.emptyMap(),
                 mock(RootDataResolver.class),
@@ -629,7 +604,7 @@ public class AgEntityOverlayTest {
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class)
                 .readablePropFilter(b -> b.property("name", true))
                 .writablePropFilter(b -> b.property("name", true));
-        AgAttribute a = o.resolve(mock(AgSchema.class), e).getAttribute("name");
+        AgAttribute a = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getAttribute("name");
         assertTrue(a.isReadable());
         assertTrue(a.isWritable());
     }
@@ -639,7 +614,8 @@ public class AgEntityOverlayTest {
 
         AgEntity<P1> e = new DefaultEntity<>(
                 "p1",
-                P1.class,
+                P1.class, false,
+                List.of(),
                 Map.of("id1", new DefaultIdPart("id1", Integer.class, true, true, o -> "")),
                 Collections.emptyMap(),
                 Collections.emptyMap(),
@@ -653,12 +629,11 @@ public class AgEntityOverlayTest {
         AgEntityOverlay<P1> o = AgEntity.overlay(P1.class)
                 .readablePropFilter(b -> b.id(false))
                 .writablePropFilter(b -> b.id(false));
-        Collection<AgIdPart> parts = o.resolve(mock(AgSchema.class), e).getIdParts();
+        Collection<AgIdPart> parts = o.resolve(mock(AgSchema.class), e, e.getSubEntities()).getIdParts();
         assertEquals(1, parts.size());
         AgIdPart part = parts.iterator().next();
         assertEquals("id1", part.getName());
         assertFalse(part.isReadable());
         assertFalse(part.isWritable());
     }
-
 }

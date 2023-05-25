@@ -10,8 +10,8 @@ import io.agrest.cayenne.cayenne.main.E2;
 import io.agrest.cayenne.cayenne.main.E3;
 import io.agrest.cayenne.cayenne.main.E31;
 import io.agrest.cayenne.cayenne.main.E4;
-import io.agrest.cayenne.unit.AgCayenneTester;
-import io.agrest.cayenne.unit.DbTest;
+import io.agrest.cayenne.unit.main.MainDbTest;
+import io.agrest.cayenne.unit.main.MainModelTester;
 import io.agrest.jaxrs2.AgJaxrs;
 import io.bootique.junit5.BQTestTool;
 import org.junit.jupiter.api.Test;
@@ -27,10 +27,10 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class POST_IT extends DbTest {
+public class POST_IT extends MainDbTest {
 
     @BQTestTool
-    static final AgCayenneTester tester = tester(Resource.class)
+    static final MainModelTester tester = tester(Resource.class)
             .entities(E2.class, E3.class, E4.class, E16.class, E17.class, E19.class, E31.class)
             .build();
 
@@ -81,7 +81,7 @@ public class POST_IT extends DbTest {
     @Test
     public void testDateTime() {
         tester.target("e16")
-                .post("{\"cDate\":\"2015-03-14\", \"cTime\":\"T19:00:00\", \"cTimestamp\":\"2015-03-14T19:00:00.000\"}")
+                .post("{\"cDate\":\"2015-03-14\", \"cTime\":\"19:00:00\", \"cTimestamp\":\"2015-03-14T19:00:00.000\"}")
                 .wasCreated()
                 // TODO: why is time returned back without a "T" prefix?
                 .bodyEquals(1, "{\"id\":1,\"cDate\":\"2015-03-14\",\"cTime\":\"19:00:00\",\"cTimestamp\":\"2015-03-14T19:00:00\"}");

@@ -1,10 +1,11 @@
 package io.agrest.cayenne.processor;
 
+import io.agrest.access.PathChecker;
 import io.agrest.id.AgObjectId;
 import io.agrest.AgRequestBuilder;
 import io.agrest.RootResourceEntity;
 import io.agrest.cayenne.cayenne.main.E1;
-import io.agrest.cayenne.unit.CayenneNoDbTest;
+import io.agrest.cayenne.unit.main.MainNoDbTest;
 import io.agrest.protocol.Direction;
 import io.agrest.protocol.Exp;
 import io.agrest.protocol.Sort;
@@ -17,7 +18,7 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
-public class CayenneQueryAssemblerTest extends CayenneNoDbTest {
+public class CayenneQueryAssemblerTest extends MainNoDbTest {
 
     @Test
     public void testCreateRootQuery_Ordering() {
@@ -26,6 +27,7 @@ public class CayenneQueryAssemblerTest extends CayenneNoDbTest {
         entity.getOrderings().add(new Sort("name", Direction.asc));
         SelectContext<E1> c = new SelectContext<>(E1.class,
                 mock(AgRequestBuilder.class),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
         c.setEntity(entity);
 
@@ -47,6 +49,7 @@ public class CayenneQueryAssemblerTest extends CayenneNoDbTest {
         SelectContext<E1> c = new SelectContext<>(
                 E1.class,
                 mock(AgRequestBuilder.class),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
         c.setEntity(entity);
 
@@ -81,6 +84,7 @@ public class CayenneQueryAssemblerTest extends CayenneNoDbTest {
         SelectContext<E1> c = new SelectContext<>(
                 E1.class,
                 mock(AgRequestBuilder.class),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
 
         c.setEntity(entity);
@@ -100,6 +104,7 @@ public class CayenneQueryAssemblerTest extends CayenneNoDbTest {
         SelectContext<E1> c = new SelectContext<>(
                 E1.class,
                 mock(AgRequestBuilder.class),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
         c.setId(AgObjectId.of(1));
         c.setEntity(getResourceEntity(E1.class));
@@ -116,6 +121,7 @@ public class CayenneQueryAssemblerTest extends CayenneNoDbTest {
         SelectContext<E1> c = new SelectContext<>(
                 E1.class,
                 mock(AgRequestBuilder.class),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
         c.setId(AgObjectId.of(1));
         c.setEntity(getResourceEntity(E1.class));

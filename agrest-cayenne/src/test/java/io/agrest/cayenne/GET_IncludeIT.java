@@ -5,8 +5,8 @@ import io.agrest.cayenne.cayenne.main.E15;
 import io.agrest.cayenne.cayenne.main.E2;
 import io.agrest.cayenne.cayenne.main.E3;
 import io.agrest.cayenne.cayenne.main.E5;
-import io.agrest.cayenne.unit.AgCayenneTester;
-import io.agrest.cayenne.unit.DbTest;
+import io.agrest.cayenne.unit.main.MainDbTest;
+import io.agrest.cayenne.unit.main.MainModelTester;
 import io.agrest.jaxrs2.AgJaxrs;
 import io.bootique.junit5.BQTestTool;
 import org.junit.jupiter.api.Test;
@@ -19,10 +19,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
 
-public class GET_IncludeIT extends DbTest {
+public class GET_IncludeIT extends MainDbTest {
 
     @BQTestTool
-    static final AgCayenneTester tester = tester(Resource.class)
+    static final MainModelTester tester = tester(Resource.class)
             .entitiesAndDependencies(E2.class, E3.class, E5.class, E15.class)
             .build();
 
@@ -121,6 +121,20 @@ public class GET_IncludeIT extends DbTest {
                 .values(10, "zzz", 1)
                 .values(11, "zzz", 1).exec();
 
+        // aligned with Cayenne "page" boundaries
+        tester.target("/e3")
+                .queryParam("include", "id", "e2.id")
+                .queryParam("sort", "id")
+                .queryParam("start", "2")
+                .queryParam("limit", "2")
+
+                .get().wasOk().bodyEquals(4,
+                        "{\"id\":10,\"e2\":{\"id\":1}}",
+                        "{\"id\":11,\"e2\":{\"id\":1}}");
+
+        // There are 3 queries, while our counter catches only 2 (the last query in paginated result is not reported).
+        tester.assertQueryCount(2);
+
         tester.target("/e3")
                 .queryParam("include", "id", "e2.id")
                 .queryParam("sort", "id")
@@ -131,10 +145,8 @@ public class GET_IncludeIT extends DbTest {
                         "{\"id\":9,\"e2\":{\"id\":1}}",
                         "{\"id\":10,\"e2\":{\"id\":1}}");
 
-        // There are 3 queries, while our counter catches only 2 (the last query in paginated result is not reported).
-        tester.assertQueryCount(2);
-
-        // TODO: e2 is fetched via a join.. If we have lots of E2s, this will be problematic
+        // not aligned with Cayenne "page" boundaries ... extra query
+        tester.assertQueryCount(2 + 3);
     }
 
 

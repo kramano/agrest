@@ -1,6 +1,7 @@
 package io.agrest.runtime.processor.select;
 
 import io.agrest.ResourceEntity;
+import io.agrest.access.PathChecker;
 import io.agrest.annotation.AgAttribute;
 import io.agrest.annotation.AgId;
 import io.agrest.annotation.AgRelationship;
@@ -81,6 +82,7 @@ public class CreateResourceEntityStage_IncludeObjectTest {
         SelectContext<Tr> context = new SelectContext<>(
                 Tr.class,
                 requestBuilderFactory.builder(),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
         context.setRequest(requestBuilderFactory.builder().addInclude(new Include("rtss")).build());
 
@@ -91,7 +93,7 @@ public class CreateResourceEntityStage_IncludeObjectTest {
         assertTrue(resourceEntity.isIdIncluded());
 
         assertEquals(1, resourceEntity.getChildren().size());
-        assertTrue(resourceEntity.getChildren().containsKey("rtss"));
+        assertNotNull(resourceEntity.getChild("rtss"));
     }
 
     @Test
@@ -99,6 +101,7 @@ public class CreateResourceEntityStage_IncludeObjectTest {
 
         SelectContext<Tr> context = new SelectContext<>(Tr.class,
                 requestBuilderFactory.builder(),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
 
         Include include = new Include("rtss", null, Collections.emptyList(), "rtt", null, null);
@@ -109,9 +112,9 @@ public class CreateResourceEntityStage_IncludeObjectTest {
         ResourceEntity<Tr> resourceEntity = context.getEntity();
         assertNotNull(resourceEntity);
 
-        ResourceEntity<?> reMapBy = resourceEntity.getChildren().get("rtss").getMapBy();
+        ResourceEntity<?> reMapBy = resourceEntity.getChild("rtss").getMapBy();
         assertNotNull(reMapBy);
-        assertNotNull(reMapBy.getChildren().get("rtt"));
+        assertNotNull(reMapBy.getChild("rtt"));
     }
 
     public static class Tr {

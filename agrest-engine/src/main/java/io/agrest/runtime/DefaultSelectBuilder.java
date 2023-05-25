@@ -1,12 +1,13 @@
 package io.agrest.runtime;
 
-import io.agrest.id.AgObjectId;
 import io.agrest.AgRequest;
 import io.agrest.DataResponse;
 import io.agrest.SelectBuilder;
 import io.agrest.SelectStage;
 import io.agrest.SizeConstraints;
+import io.agrest.access.PathChecker;
 import io.agrest.encoder.Encoder;
+import io.agrest.id.AgObjectId;
 import io.agrest.meta.AgEntity;
 import io.agrest.meta.AgEntityOverlay;
 import io.agrest.meta.AgSchema;
@@ -62,6 +63,12 @@ public class DefaultSelectBuilder<T> implements SelectBuilder<T> {
     @Override
     public SelectBuilder<T> start(int offset) {
         getOrCreateSizeConstraints().fetchOffset(offset);
+        return this;
+    }
+
+    @Override
+    public SelectBuilder<T> maxPathDepth(int maxPathDepth) {
+        context.setMaxPathDepth(PathChecker.of(maxPathDepth));
         return this;
     }
 

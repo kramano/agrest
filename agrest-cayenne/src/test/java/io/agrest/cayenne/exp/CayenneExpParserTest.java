@@ -5,6 +5,7 @@ import org.apache.cayenne.exp.Expression;
 import org.apache.cayenne.exp.ExpressionFactory;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 import static java.util.Arrays.asList;
@@ -36,6 +37,20 @@ public class CayenneExpParserTest {
     public void testParseKeyValue_Eq() {
         Expression e = parser.parse(Exp.keyValue("a", "=", 5));
         assertEquals(ExpressionFactory.exp("a = 5"), e);
+    }
+
+    @Test
+    public void testParseKeyValue_Eq_Date() {
+        LocalDate d = LocalDate.of(1999, 8, 7);
+        Expression e = parser.parse(Exp.keyValue("a", "=", d));
+        assertEquals(ExpressionFactory.exp("a = $a").paramsArray(d), e);
+    }
+
+    @Test
+    public void testParseKeyValue_Eq_Object() {
+        Object o = new Object();
+        Expression e = parser.parse(Exp.keyValue("a", "=", o));
+        assertEquals(ExpressionFactory.exp("a = $a").paramsArray(o), e);
     }
 
     @Test

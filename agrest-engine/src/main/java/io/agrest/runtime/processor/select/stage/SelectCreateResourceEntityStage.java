@@ -2,9 +2,8 @@ package io.agrest.runtime.processor.select.stage;
 
 import io.agrest.AgRequest;
 import io.agrest.RootResourceEntity;
-import io.agrest.meta.AgSchema;
 import io.agrest.meta.AgEntity;
-import io.agrest.meta.AgEntityOverlay;
+import io.agrest.meta.AgSchema;
 import io.agrest.processor.Processor;
 import io.agrest.processor.ProcessorOutcome;
 import io.agrest.runtime.entity.IExcludeMerger;
@@ -54,20 +53,17 @@ public class SelectCreateResourceEntityStage implements Processor<SelectContext<
     }
 
     protected <T> void doExecute(SelectContext<T> context) {
-        AgEntityOverlay<T> overlay = context.getEntityOverlay(context.getType());
         AgEntity<T> entity = schema.getEntity(context.getType());
-
-        RootResourceEntity<T> resourceEntity = new RootResourceEntity<>(
-                overlay != null ? overlay.resolve(schema, entity) : entity
-        );
+        AgEntity<T> overlaid = entity.resolveOverlayHierarchy(schema, context.getEntityOverlays());
+        RootResourceEntity<T> resourceEntity = new RootResourceEntity<>(overlaid);
 
         AgRequest request = context.getRequest();
 
         sizeMerger.merge(resourceEntity, request.getStart(), request.getLimit());
-        includeMerger.merge(resourceEntity, request.getIncludes(), context.getEntityOverlays());
+        includeMerger.merge(resourceEntity, request.getIncludes(), context.getEntityOverlays(), context.getMaxPathDepth());
         excludeMerger.merge(resourceEntity, request.getExcludes());
-        sortMerger.merge(resourceEntity, request.getSorts());
-        mapByMerger.merge(resourceEntity, request.getMapBy(), context.getEntityOverlays());
+        sortMerger.merge(resourceEntity, request.getSorts(), context.getMaxPathDepth());
+        mapByMerger.merge(resourceEntity, request.getMapBy(), context.getEntityOverlays(), context.getMaxPathDepth());
         expMerger.merge(resourceEntity, request.getExp());
 
         context.setEntity(resourceEntity);

@@ -4,8 +4,8 @@ import io.agrest.DataResponse;
 import io.agrest.cayenne.cayenne.main.E2;
 import io.agrest.cayenne.cayenne.main.E3;
 import io.agrest.cayenne.cayenne.main.E4;
-import io.agrest.cayenne.unit.AgCayenneTester;
-import io.agrest.cayenne.unit.DbTest;
+import io.agrest.cayenne.unit.main.MainDbTest;
+import io.agrest.cayenne.unit.main.MainModelTester;
 import io.agrest.jaxrs2.AgJaxrs;
 import io.bootique.junit5.BQTestTool;
 import org.junit.jupiter.api.DisplayName;
@@ -18,10 +18,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
 import java.time.LocalDateTime;
 
-public class GET_ExpIT extends DbTest {
+public class GET_ExpIT extends MainDbTest {
 
     @BQTestTool
-    static final AgCayenneTester tester = tester(Resource.class)
+    static final MainModelTester tester = tester(Resource.class)
             .entities(E2.class, E3.class, E4.class)
             .build();
 
@@ -286,6 +286,116 @@ public class GET_ExpIT extends DbTest {
                 .queryParam("exp", "{\"exp\":\"e2 not in ($id1, $id2)\",\"params\":{\"id1\":1,\"id2\":3}}")
                 .get()
                 .wasOk().bodyEquals(1, "{\"id\":9}");
+    }
+
+    @Test
+    public void testLike_MatchSingleQuote() {
+
+        tester.e2().insertColumns("id_", "name")
+                .values(1, "xxx")
+                .values(2, "yxy")
+                .values(3, "y'y")
+                .values(4, "yyy")
+                .exec();
+
+        tester.target("/e2")
+                .queryParam("include", "id")
+                .queryParam("exp", "name like 'y\\'y'")
+                .queryParam("sort", "id")
+                .get()
+                .wasOk().bodyEquals(1, "{\"id\":3}");
+    }
+
+    @Test
+    public void testLike_MatchDoubleQuote() {
+
+        tester.e2().insertColumns("id_", "name")
+                .values(1, "xxx")
+                .values(2, "yxy")
+                .values(3, "y\"y")
+                .values(4, "yyy")
+                .exec();
+
+        tester.target("/e2")
+                .queryParam("include", "id")
+                .queryParam("exp", "name like 'y\\\"y'")
+                .queryParam("sort", "id")
+                .get()
+                .wasOk().bodyEquals(1, "{\"id\":3}");
+    }
+
+    @Test
+    public void testLike_SingleChar_Pattern() {
+
+        tester.e2().insertColumns("id_", "name")
+                .values(1, "xxx")
+                .values(2, "yxy")
+                .values(3, "yxxy")
+                .values(4, "yyy")
+                .exec();
+
+        tester.target("/e2")
+                .queryParam("include", "id")
+                .queryParam("exp", "name like 'y_y'")
+                .queryParam("sort", "id")
+                .get()
+                .wasOk().bodyEquals(2, "{\"id\":2}", "{\"id\":4}");
+    }
+
+    @Test
+    public void testLike_MultiChar_Pattern() {
+
+        tester.e2().insertColumns("id_", "name")
+                .values(1, "xxx")
+                .values(2, "yxy")
+                .values(3, "yxxy")
+                .values(4, "yyy")
+                .exec();
+
+        tester.target("/e2")
+                .queryParam("include", "id")
+                .queryParam("exp", "name like 'y%y'")
+                .queryParam("sort", "id")
+                .get()
+                .wasOk().bodyEquals(3, "{\"id\":2}", "{\"id\":3}", "{\"id\":4}");
+    }
+
+    @Test
+    public void testLike_SingleChar_Pattern_Escape() {
+
+        tester.e2().insertColumns("id_", "name")
+                .values(1, "xxx")
+                .values(2, "yxy")
+                .values(3, "y_y")
+                .values(4, "y_ay")
+                .values(5, "yyy")
+                .exec();
+
+        tester.target("/e2")
+                .queryParam("include", "id")
+                .queryParam("exp", "name like 'y@__y' escape '@'")
+                .queryParam("sort", "id")
+                .get()
+                .wasOk().bodyEquals(1, "{\"id\":4}");
+    }
+
+    @Test
+    public void testLike_MultiChar_Pattern_Escape() {
+
+        tester.e2().insertColumns("id_", "name")
+                .values(1, "xxx")
+                .values(2, "yxy")
+                .values(3, "y%y")
+                .values(4, "y%ay")
+                .values(5, "yyy")
+                .exec();
+
+        tester.target("/e2")
+                .queryParam("include", "id")
+                .queryParam("exp", "name like 'y@%%y' escape '@'")
+                .queryParam("sort", "id")
+                .get()
+                .wasOk().bodyEquals(2, "{\"id\":3}", "{\"id\":4}");
     }
 
     @Path("")

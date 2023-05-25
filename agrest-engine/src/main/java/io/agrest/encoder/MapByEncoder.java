@@ -9,22 +9,19 @@ import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
 
-public class MapByEncoder implements Encoder {
+public class MapByEncoder extends AbstractEncoder {
 
-    private final String mapByPath;
     private final List<DataReader> mapByReaders;
     private final Encoder collectionEncoder;
     private final boolean byId;
     private final ValueStringConverter fieldNameConverter;
 
     public MapByEncoder(
-            String mapByPath,
             List<DataReader> mapByReaders,
             Encoder collectionEncoder,
             boolean byId,
             ValueStringConverter fieldNameConverter) {
 
-        this.mapByPath = mapByPath;
         this.mapByReaders = mapByReaders;
         this.collectionEncoder = collectionEncoder;
         this.byId = byId;
@@ -32,17 +29,7 @@ public class MapByEncoder implements Encoder {
     }
 
     @Override
-    public void encode(String propertyName, Object object, JsonGenerator out) throws IOException {
-
-        if (propertyName != null) {
-            out.writeFieldName(propertyName);
-        }
-
-        if (object == null) {
-            out.writeNull();
-            return;
-        }
-
+    protected void encodeNonNullObject(Object object, boolean skipNullProperties, JsonGenerator out) throws IOException {
         List<?> objects = (List<?>) object;
         Map<String, List<Object>> map = mapBy(objects);
 
@@ -50,7 +37,7 @@ public class MapByEncoder implements Encoder {
 
         for (Entry<String, List<Object>> e : map.entrySet()) {
             out.writeFieldName(e.getKey());
-            collectionEncoder.encode(null, e.getValue(), out);
+            collectionEncoder.encode(null, e.getValue(), skipNullProperties, out);
         }
 
         out.writeEndObject();
@@ -88,10 +75,9 @@ public class MapByEncoder implements Encoder {
             }
 
             // disallow nulls as JSON keys...
-            // note that converter below will throw an NPE if we pass NULL
-            // further down... the error here has more context.
+            // note that converter below will throw an NPE if we pass "null" further down. The error here has more context.
             if (key == null) {
-                throw AgException.internalServerError("Null mapBy value for key '%s'", mapByPath);
+                throw AgException.internalServerError("Null mapBy value for object '%s'", o);
             }
 
             String keyString = fieldNameConverter.asString(key);

@@ -2,7 +2,8 @@ package io.agrest.runtime;
 
 import io.agrest.AgRequestBuilder;
 import io.agrest.SelectStage;
-import io.agrest.pojo.model.P1;
+import io.agrest.access.PathChecker;
+import io.agrest.junit.pojo.P1;
 import io.agrest.processor.Processor;
 import io.agrest.processor.ProcessorOutcome;
 import io.agrest.runtime.processor.select.SelectContext;
@@ -23,6 +24,7 @@ public class DefaultSelectBuilderTest {
         SelectContext<T> context = new SelectContext<>(
                 type,
                 mock(AgRequestBuilder.class),
+                PathChecker.ofDefault(),
                 mock(Injector.class));
         SelectProcessorFactory processorFactory = mock(SelectProcessorFactory.class);
         when(processorFactory.createProcessor(any())).thenReturn(mock(Processor.class));

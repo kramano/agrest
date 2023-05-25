@@ -1,6 +1,5 @@
 package io.agrest.cayenne;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import io.agrest.DataResponse;
 import io.agrest.SimpleResponse;
 import io.agrest.UpdateStage;
@@ -16,8 +15,8 @@ import io.agrest.cayenne.cayenne.main.E4;
 import io.agrest.cayenne.cayenne.main.E7;
 import io.agrest.cayenne.cayenne.main.E8;
 import io.agrest.cayenne.cayenne.main.E9;
-import io.agrest.cayenne.unit.AgCayenneTester;
-import io.agrest.cayenne.unit.DbTest;
+import io.agrest.cayenne.unit.main.MainDbTest;
+import io.agrest.cayenne.unit.main.MainModelTester;
 import io.agrest.encoder.Encoder;
 import io.agrest.jaxrs2.AgJaxrs;
 import io.bootique.junit5.BQTestTool;
@@ -31,15 +30,14 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PUT_IT extends DbTest {
+public class PUT_IT extends MainDbTest {
 
     @BQTestTool
-    static final AgCayenneTester tester = tester(Resource.class)
+    static final MainModelTester tester = tester(Resource.class)
             .entities(E2.class, E3.class, E4.class, E7.class, E8.class, E9.class, E14.class, E17.class, E23.class, E26.class, E28.class, E31.class)
             .build();
 
@@ -507,13 +505,10 @@ public class PUT_IT extends DbTest {
         @Path("e7_custom_encoder")
         public DataResponse<E7> syncE7_CustomEncoder(@Context UriInfo uriInfo, String data) {
 
-            Encoder encoder = new Encoder() {
-                @Override
-                public void encode(String propertyName, Object object, JsonGenerator out) throws IOException {
-                    out.writeStartObject();
-                    out.writeObjectField("encoder", "custom");
-                    out.writeEndObject();
-                }
+            Encoder encoder = (propertyName, object, skipNullProperties, out) -> {
+                out.writeStartObject();
+                out.writeObjectField("encoder", "custom");
+                out.writeEndObject();
             };
 
             return AgJaxrs.idempotentFullSync(E7.class, config).clientParams(uriInfo.getQueryParameters())

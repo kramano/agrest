@@ -1,9 +1,8 @@
 package io.agrest.runtime.entity;
 
 import io.agrest.ResourceEntity;
-import io.agrest.meta.AgSchema;
 import io.agrest.meta.AgEntityOverlay;
-import io.agrest.meta.AgRelationship;
+import io.agrest.meta.AgSchema;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -22,9 +21,11 @@ public class PhantomTrackingResourceEntityTreeBuilder extends ResourceEntityTree
     public PhantomTrackingResourceEntityTreeBuilder(
             ResourceEntity<?> rootEntity,
             AgSchema schema,
-            Map<Class<?>, AgEntityOverlay<?>> entityOverlays) {
+            Map<Class<?>, AgEntityOverlay<?>> entityOverlays,
+            int maxTreeDepth,
+            boolean quietTruncateLongPaths) {
 
-        super(rootEntity, schema, entityOverlays);
+        super(rootEntity, schema, entityOverlays, maxTreeDepth, quietTruncateLongPaths);
         this.nonPhantomEntities = new HashSet<>();
 
         // "root" always a candidate for defaults, as it is included implicitly
@@ -40,8 +41,8 @@ public class PhantomTrackingResourceEntityTreeBuilder extends ResourceEntityTree
     }
 
     @Override
-    protected ResourceEntity<?> inflateChild(ResourceEntity<?> parentEntity, AgRelationship relationship, String childPath) {
-        ResourceEntity childEntity = super.inflateChild(parentEntity, relationship, childPath);
+    protected ResourceEntity<?> inflateChild(ResourceEntity<?> parentEntity, String relationshipName, String childPath, int remainingDepth) {
+        ResourceEntity childEntity = super.inflateChild(parentEntity, relationshipName, childPath, remainingDepth);
 
         if (childPath == null) {
             // explicit relationship "include" may need defaults

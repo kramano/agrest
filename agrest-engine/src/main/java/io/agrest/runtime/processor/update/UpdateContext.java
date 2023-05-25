@@ -1,6 +1,7 @@
 package io.agrest.runtime.processor.update;
 
 import io.agrest.AgException;
+import io.agrest.access.PathChecker;
 import io.agrest.id.AgObjectId;
 import io.agrest.AgRequest;
 import io.agrest.AgRequestBuilder;
@@ -39,11 +40,12 @@ public class UpdateContext<T> extends BaseProcessingContext<T> {
     private Collection<EntityUpdate<T>> updates;
     private Encoder encoder;
     private Map<Class<?>, AgEntityOverlay<?>> entityOverlays;
+    private PathChecker pathChecker;
 
     private final AgRequestBuilder requestBuilder;
     private final Map<ChangeOperationType, List<ChangeOperation<T>>> changeOperations;
 
-    public UpdateContext(Class<T> type, AgRequestBuilder requestBuilder, Injector injector) {
+    public UpdateContext(Class<T> type, AgRequestBuilder requestBuilder, PathChecker pathChecker, Injector injector) {
         super(type, injector);
 
         this.changeOperations = new EnumMap<>(ChangeOperationType.class);
@@ -52,6 +54,7 @@ public class UpdateContext<T> extends BaseProcessingContext<T> {
         this.changeOperations.put(ChangeOperationType.DELETE, Collections.emptyList());
 
         this.requestBuilder = requestBuilder;
+        this.pathChecker = pathChecker;
     }
 
     /**
@@ -254,6 +257,20 @@ public class UpdateContext<T> extends BaseProcessingContext<T> {
      */
     public void setRequest(AgRequest request) {
         requestBuilder.setRequest(request);
+    }
+
+    /**
+     * @since 5.0
+     */
+    public PathChecker getMaxPathDepth() {
+        return pathChecker;
+    }
+
+    /**
+     * @since 5.0
+     */
+    public void setMaxPathDepth(PathChecker pathChecker) {
+        this.pathChecker = pathChecker;
     }
 
     /**

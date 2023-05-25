@@ -5,8 +5,8 @@ import io.agrest.DataResponse;
 import io.agrest.SelectStage;
 import io.agrest.cayenne.cayenne.main.E27Nopk;
 import io.agrest.cayenne.persister.ICayennePersister;
-import io.agrest.cayenne.unit.AgCayenneTester;
-import io.agrest.cayenne.unit.DbTest;
+import io.agrest.cayenne.unit.main.MainDbTest;
+import io.agrest.cayenne.unit.main.MainModelTester;
 import io.agrest.encoder.DataResponseEncoder;
 import io.agrest.encoder.Encoder;
 import io.agrest.encoder.GenericEncoder;
@@ -25,10 +25,10 @@ import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.util.List;
 
-public class GET_StagesIT extends DbTest {
+public class GET_StagesIT extends MainDbTest {
 
     @BQTestTool
-    static final AgCayenneTester tester = tester(Resource.class)
+    static final MainModelTester tester = tester(Resource.class)
             .entities(E27Nopk.class)
             .build();
 
@@ -79,8 +79,7 @@ public class GET_StagesIT extends DbTest {
     static class NoIdEncoder implements Encoder {
 
         @Override
-        public void encode(String propertyName, Object object, JsonGenerator out) throws IOException {
-
+        public void encode(String propertyName, Object object, boolean skipNullProperties, JsonGenerator out) throws IOException {
             out.writeStartObject();
             out.writeStringField("name", object == null ? null : object.toString());
             out.writeEndObject();
